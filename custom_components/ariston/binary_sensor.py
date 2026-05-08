@@ -56,10 +56,6 @@ async def async_setup_entry(
             description.whe_types,
         ):
             continue
-        if description.runtime_filter is not None and not description.runtime_filter(
-            coordinator.device
-        ):
-            continue
         ariston_binary_sensors.append(AristonBinarySensor(coordinator, description))
 
     async_add_entities(ariston_binary_sensors)
@@ -84,6 +80,10 @@ async def async_setup_entry(
                 target_entry.unique_id
             ][COORDINATOR]
             await target_coordinator.device.async_set_holiday(end_date)
+            # Pull the latest plant data so the holiday end-date sensor and any
+            # other consumer of `device.data` reflect the change without
+            # waiting for the next scheduled poll.
+            await target_coordinator.async_request_refresh()
             for ariston_binary_sensor in ariston_binary_sensors:
                 key = ariston_binary_sensor.entity_description.key
                 if key in (DeviceProperties.HOLIDAY, NuosSplitProperties.HOLIDAY_UNTIL):
