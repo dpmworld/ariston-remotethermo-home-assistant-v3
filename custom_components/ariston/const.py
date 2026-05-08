@@ -87,6 +87,13 @@ class AristonBaseEntityDescription(EntityDescription):
     system_types: list[SystemType] | None = None
     whe_types: list[WheType] | None = None
     zone: bool = False
+    # Optional runtime gate: called with the device after the first cloud
+    # refresh; if it returns False the entity is not created. Use this when
+    # capability cannot be inferred from `whe_type` alone — for example
+    # when only a subset of NuosSplit firmware variants ship the holiday
+    # endpoint, signalled by the presence of `holidayUntil` in the plant
+    # data response.
+    runtime_filter: Callable[[Any], bool] | None = None
 
 
 @dataclass(kw_only=True, frozen=True)
@@ -620,6 +627,25 @@ ARISTON_BINARY_SENSOR_TYPES: list[AristonBinarySensorEntityDescription] = [
         ],
         get_is_on=lambda entity: entity.device.holiday_mode_value,
         system_types=[SystemType.GALEVO],
+    ),
+    AristonBinarySensorEntityDescription(
+        key=NuosSplitProperties.HOLIDAY_UNTIL,
+        name=f"{NAME} holiday mode",
+        icon="mdi:island",
+        extra_states=[
+            {
+                EXTRA_STATE_ATTRIBUTE: ATTR_HOLIDAY,
+                EXTRA_STATE_DEVICE_METHOD: lambda entity: entity.device.holiday_end_date,
+            }
+        ],
+        get_is_on=lambda entity: entity.device.holiday_active,
+        system_types=[SystemType.VELIS],
+        whe_types=[WheType.NuosSplit],
+        # Only create the entity when the live plant data actually contains
+        # the holidayUntil key — that confirms the cloud exposes the holiday
+        # endpoint for this specific Nuos variant.
+        runtime_filter=lambda device: NuosSplitProperties.HOLIDAY_UNTIL
+        in getattr(device, "data", {}),
     ),
     AristonBinarySensorEntityDescription(
         key=EvoLydosDeviceProperties.HEAT_REQ,
