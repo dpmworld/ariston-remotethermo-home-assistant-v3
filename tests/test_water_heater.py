@@ -23,6 +23,8 @@ def make_nuos_device() -> AristonNuosSplitDevice:
     api = MagicMock()
     api.set_nuos_mode = MagicMock()
     api.async_set_nuos_mode = AsyncMock()
+    api.set_nuos_mode_via_r2 = MagicMock()
+    api.async_set_nuos_mode_via_r2 = AsyncMock()
     api.set_nuos_temperature = MagicMock()
     api.async_set_nuos_temperature = AsyncMock()
     api.set_velis_power = MagicMock()
@@ -99,13 +101,19 @@ async def test_set_operation_mode_all_options():
     """All NuosSplit modes round-trip through the setter and a coordinator refresh."""
     device = make_nuos_device()
 
+    # GREEN goes through the R2 endpoint, the other modes through api/v2.
+    sent = []
+    device.api.async_set_nuos_mode.side_effect = lambda gw, mode: sent.append(mode)
+    device.api.async_set_nuos_mode_via_r2.side_effect = (
+        lambda gw, mode: sent.append(mode)
+    )
+
     def fake_refresh():
-        sent_value = device.api.async_set_nuos_mode.await_args.args[1].value
-        device.data[NuosSplitProperties.OP_MODE] = sent_value
+        device.data[NuosSplitProperties.OP_MODE] = sent[-1].value
 
     entity = make_entity(device, on_refresh=fake_refresh)
 
-    for mode in ("GREEN", "COMFORT", "FAST", "IMEMORY"):
+    for mode in ("GREEN", "COMFORT", "FAST", "AUTO"):
         await entity.async_set_operation_mode(mode)
         assert entity.current_operation == mode, f"mode {mode} round-trip failed"
 
