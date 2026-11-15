@@ -169,7 +169,7 @@ def test_dhw_total_energy_reports_daily_sum_and_reset_time(
     entity = AristonSensor(coordinator, description)
 
     assert entity.native_value == 1.87
-    # last_reset is anchored to UTC midnight: the cloud's hourly buckets are UTC.
+    # last_reset is anchored to local midnight, matching the sum's cut-off.
     assert entity.last_reset == period_last_reset(ConsumptionTimeInterval.LAST_DAY)
 
 

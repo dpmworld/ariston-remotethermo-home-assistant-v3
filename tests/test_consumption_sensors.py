@@ -4,6 +4,7 @@ import datetime as dt
 from types import SimpleNamespace
 
 import pytest
+from homeassistant.util import dt as dt_util
 from ariston.const import ConsumptionTimeInterval, ConsumptionType
 
 from custom_components.ariston.const import ARISTON_SENSOR_TYPES
@@ -53,8 +54,8 @@ def test_sensor_native_value_returns_full_period_sum(sensor_key, consumption_typ
 
 
 @pytest.mark.parametrize("sensor_key", list(CONSUMPTION_SENSORS_BY_KEY))
-def test_sensor_last_reset_is_stable_midnight_utc(sensor_key):
-    """`last_reset` must be a stable UTC midnight, not the lib's `now-1h` rotation timestamp."""
+def test_sensor_last_reset_is_stable_local_midnight(sensor_key):
+    """`last_reset` must be a stable local midnight, not the lib's `now-1h` rotation timestamp."""
     desc = _sensor_by_key(sensor_key)
     entity = _entity_with_sequences(
         CONSUMPTION_SENSORS_BY_KEY[sensor_key], [1.0, 2.0]
@@ -62,7 +63,8 @@ def test_sensor_last_reset_is_stable_midnight_utc(sensor_key):
 
     reset = desc.get_last_reset(entity)
     assert reset.tzinfo is not None
-    assert reset.hour == 0 and reset.minute == 0 and reset.second == 0
+    local = dt_util.as_local(reset)
+    assert local.hour == 0 and local.minute == 0 and local.second == 0
 
 
 def test_sensor_native_value_none_when_no_sequences():
