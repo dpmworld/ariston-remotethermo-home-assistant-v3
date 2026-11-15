@@ -12,7 +12,6 @@ from ariston.const import (
     CustomDeviceFeatures,
     DeviceProperties,
 )
-from homeassistant.util import dt as dt_util
 
 from custom_components.ariston.energy import period_last_reset
 from custom_components.ariston.const import (
