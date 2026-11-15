@@ -20,7 +20,7 @@ from .const import (
     AristonBinarySensorEntityDescription,
 )
 from .coordinator import DeviceDataUpdateCoordinator
-from .entity import AristonEntity
+from .entity import AristonEntity, is_entity_description_available
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -39,31 +39,31 @@ async def async_setup_entry(
     hass: HomeAssistant, entry: ConfigEntry, async_add_entities
 ) -> None:
     """Set up the Ariston binary sensors from config entry."""
-    main_coordinator: DeviceDataUpdateCoordinator = hass.data[DOMAIN][
-        entry.unique_id
-    ][COORDINATOR]
-
     ariston_binary_sensors: list[AristonBinarySensor] = []
+    main_coordinator: DeviceDataUpdateCoordinator | None = hass.data[DOMAIN][
+        entry.unique_id
+    ].get(COORDINATOR)
+
     for description in ARISTON_BINARY_SENSOR_TYPES:
-        coordinator: DeviceDataUpdateCoordinator = hass.data[DOMAIN][entry.unique_id][
-            description.coordinator
-        ]
-        if not coordinator or not coordinator.device:
-            continue
-        if not coordinator.device.are_device_features_available(
-            description.device_features,
-            description.system_types,
-            description.whe_types,
-        ):
-            continue
-        ariston_binary_sensors.append(AristonBinarySensor(coordinator, description))
+        coordinator: DeviceDataUpdateCoordinator | None = hass.data[DOMAIN][
+            entry.unique_id
+        ].get(description.coordinator)
+        if is_entity_description_available(coordinator, description):
+            if description.zone:
+                for zone_number in coordinator.device.zone_numbers:
+                    ariston_binary_sensors.append(
+                        AristonBinarySensor(coordinator, description, zone_number)
+                    )
+            else:
+                ariston_binary_sensors.append(
+                    AristonBinarySensor(coordinator, description)
+                )
 
     async_add_entities(ariston_binary_sensors)
 
-    # Register the create_vacation service whenever the device exposes a
-    # holiday setter. Galevo always has it; for Velis Slp (Nuos) the
-    # python-ariston-api fork exposes it on the dpm/integration branch.
-    if hasattr(main_coordinator.device, "async_set_holiday"):
+    # Register create_vacation whenever the device exposes a holiday setter
+    # (Galevo natively, Velis Slp/Nuos via the library's async_set_holiday).
+    if main_coordinator and hasattr(main_coordinator.device, "async_set_holiday"):
 
         async def async_create_vacation_service(service_call):
             """Create a vacation on the target device."""
@@ -104,9 +104,17 @@ class AristonBinarySensor(AristonEntity, BinarySensorEntity):
         self,
         coordinator: DeviceDataUpdateCoordinator,
         description: AristonBinarySensorEntityDescription,
+        zone: int = 0,
     ) -> None:
         """Initialize the entity."""
-        super().__init__(coordinator, description)
+        super().__init__(coordinator, description, zone)
+
+    @property
+    def name(self):
+        """Return the name of the entity."""
+        if self.zone:
+            return f"{self.entity_description.name} {self.zone}"
+        return self.entity_description.name
 
     @property
     def is_on(self):

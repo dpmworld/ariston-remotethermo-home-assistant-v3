@@ -75,7 +75,7 @@ def period_total(
                 if value is None:
                     continue
                 total += float(value)
-            return total
+            return round(total, 3)
     return None
 
 

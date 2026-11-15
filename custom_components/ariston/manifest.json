@@ -1,6 +1,7 @@
 {
   "domain": "ariston",
   "name": "Ariston",
+  "categories": ["climate.thermostats_heating", "climate.water_heaters"],
   "codeowners": ["@fustom"],
   "config_flow": true,
   "dependencies": [],
@@ -11,6 +12,6 @@
   "loggers": ["ariston"],
   "requirements": ["ariston==0.19.14"],
   "ssdp": [],
-  "version": "0.19.9",
+  "version": "0.20.4",
   "zeroconf": []
 }
